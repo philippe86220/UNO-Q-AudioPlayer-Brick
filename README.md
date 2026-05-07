@@ -93,6 +93,14 @@ python/
 
 ---
 
+## Credits
+
+This project was developed through experimentation and architectural exploration of the UNO Q platform.
+
+It also benefited from technical discussions and architectural exploration with ChatGPT (OpenAI).
+
+---
+
 ## License
 
 MIT License
