@@ -89,6 +89,9 @@ bricks/
 
 python/
     main.py
+
+README.md
+app.yaml
 ```
 
 ---
