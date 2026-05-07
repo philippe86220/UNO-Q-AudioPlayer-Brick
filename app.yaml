@@ -1,1 +1,7 @@
+name: Copy of UNO-Q-WebRadio-Brick
+description: This project explores advanced custom brick capabilities in Arduino App Lab 0.7.0 on the UNO Q platform.
+ports: []
+bricks:
+- audioplayer: {}
+icon: 🎵
 
