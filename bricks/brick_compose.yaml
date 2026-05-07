@@ -1,1 +1,18 @@
+services:
+  player:
+    image: debian:bookworm-slim
+    user: root
+
+    devices:
+      - /dev/snd
+
+    volumes:
+      - .:/audioplayer
+
+    command: >
+      sh -c "
+      apt update &&
+      apt install -y python3 mpg123 alsa-utils procps curl ca-certificates &&
+      exec python3 /audioplayer/audio_service.py
+      "
 
