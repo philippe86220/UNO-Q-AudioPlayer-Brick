@@ -8,6 +8,7 @@ services:
 
     volumes:
       - .:/audioplayer
+      - /home/arduino/mp3:/hosthome
 
     command: >
       sh -c "
