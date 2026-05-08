@@ -148,6 +148,14 @@ services:
   
   makes host MP3 files accessible from inside the container
 
+  Create the host directory if needed:
+
+  ```bash
+   mkdir -p /home/arduino/mp3
+  ```
+
+  Then simply copy your MP3 files into that directory (within available storage space on the UNO Q host filesystem).
+
 - `command: ...`
   
   installs required packages and launches the audio backend service
