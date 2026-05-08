@@ -9,7 +9,7 @@ PORT = 9000
 AUDIO_DEVICE = "hw:0,0"
 
 player_process = None
-current_url = ""
+current_source = ""
 volume = 50
 
 
@@ -29,20 +29,13 @@ def stop_player():
         player_process = None
 
 
-def start_player(url):
-    global player_process, current_url
+def start_player(source):
+    global player_process, current_source
 
-    if not url:
+    if not source:
         return {
             "ok": False,
-            "error": "Missing URL"
-        }
-
-    if not (url.startswith("http://") or url.startswith("https://")):
-        return {
-            "ok": False,
-            "error": "Invalid URL",
-            "url": url
+            "error": "Missing source"
         }
 
     stop_player()
@@ -52,14 +45,14 @@ def start_player(url):
         "-o", "alsa",
         "-a", AUDIO_DEVICE,
         "--buffer", "4096",
-        url
+        source
     ])
 
-    current_url = url
+    current_source = source
 
     return {
         "ok": True,
-        "url": current_url
+        "source": current_source
     }
 
 
@@ -91,7 +84,7 @@ def set_volume(value):
 def get_status():
     return {
         "ok": True,
-        "url": current_url,
+        "source": current_source,
         "volume": volume,
         "running": player_process is not None and player_process.poll() is None
     }
@@ -113,15 +106,15 @@ class Handler(BaseHTTPRequestHandler):
         query = urllib.parse.parse_qs(parsed.query)
 
         if path == "play":
-            url = query.get("url", [""])[0]
-            self._send_json(start_player(url))
+            source = query.get("source", [""])[0]
+            self._send_json(start_player(source))
             return
 
         if path == "stop":
             stop_player()
             self._send_json({
                 "ok": True,
-                "url": current_url,
+                "source": current_source,
                 "running": False
             })
             return
