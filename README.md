@@ -111,6 +111,50 @@ This allows the brick to play MP3 files stored directly on the UNO Q host filesy
 
 ---
 
+## Custom Brick Container
+
+This project uses the App Lab custom brick container feature through `brick_compose.yaml`.
+
+The brick declares its own Linux backend service:
+
+```yaml
+services:
+  player:
+    image: debian:bookworm-slim
+    user: root
+    devices:
+      - /dev/snd
+    volumes:
+      - /home/arduino/mp3:/hosthome
+    command: >
+      sh -c "
+      apt update &&
+      apt install -y python3 mpg123 alsa-utils procps curl ca-certificates &&
+      exec python3 /webradio/audio_service.py
+      "
+```
+
+### Explanation
+
+- `image: debian:bookworm-slim`
+  
+  lightweight Debian container used as the audio backend
+
+- `devices: /dev/snd`
+  
+  exposes the UNO Q audio device to the container
+
+- `volumes: /home/arduino/mp3:/hosthome`
+  
+  makes host MP3 files accessible from inside the container
+
+- `command: ...`
+  
+  installs required packages and launches the audio backend service
+
+This demonstrates that a custom App Lab brick can encapsulate not only Python logic, but also its own dedicated Linux runtime service.
+
+---
 ## Notes
 
 On first startup, the container dynamically installs required Debian packages:
