@@ -8,7 +8,7 @@ from urllib.error import URLError, HTTPError
 class AudioPlayer:
     def __init__(self, host="http://player:9000"):
         self.host = host
-        self.url = ""
+        self.source = ""
         self.volume = 50
         self.running = False
 
@@ -23,17 +23,17 @@ class AudioPlayer:
         except Exception as e:
             return {"ok": False, "error": "Unexpected error", "details": str(e)}
 
-    def play(self, url):
-        encoded_url = urllib.parse.quote(url, safe="")
-        result = self._get_json("/play?url=" + encoded_url)
+    def play(self, source):
+        encoded_source = urllib.parse.quote(source, safe="")
+        result = self._get_json("/play?source=" + encoded_source)
 
         if result.get("ok"):
-            self.url = url
+            self.source = source
             self.running = True
 
         return {
             "ok": result.get("ok", False),
-            "url": self.url,
+            "source": self.source,
             "running": self.running,
             "raw": result
         }
@@ -46,7 +46,7 @@ class AudioPlayer:
 
         return {
             "ok": result.get("ok", False),
-            "url": self.url,
+            "source": self.source,
             "running": self.running,
             "raw": result
         }
@@ -74,13 +74,13 @@ class AudioPlayer:
         result = self._get_json("/status")
 
         if result.get("ok"):
-            self.url = result.get("url", self.url)
+            self.source = result.get("source", self.source)
             self.volume = result.get("volume", self.volume)
             self.running = result.get("running", self.running)
 
         return {
             "ok": result.get("ok", False),
-            "url": self.url,
+            "source": self.source,
             "volume": self.volume,
             "running": self.running,
             "raw": result
