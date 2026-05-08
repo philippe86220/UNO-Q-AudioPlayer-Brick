@@ -122,16 +122,21 @@ services:
   player:
     image: debian:bookworm-slim
     user: root
+
     devices:
       - /dev/snd
+
     volumes:
+      - .:/audioplayer
       - /home/arduino/mp3:/hosthome
+
     command: >
       sh -c "
       apt update &&
       apt install -y python3 mpg123 alsa-utils procps curl ca-certificates &&
-      exec python3 /webradio/audio_service.py
+      exec python3 /audioplayer/audio_service.py
       "
+
 ```
 
 ### Explanation
