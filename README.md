@@ -115,7 +115,7 @@ This allows the brick to play MP3 files stored directly on the UNO Q host filesy
 
 This project uses the App Lab custom brick container feature through `brick_compose.yaml`.
 
-The brick declares its own Linux backend service:
+The brick declares and manages its own Linux backend service:
 
 ```yaml
 services:
@@ -136,38 +136,191 @@ services:
       apt install -y python3 mpg123 alsa-utils procps curl ca-certificates &&
       exec python3 /audioplayer/audio_service.py
       "
-
 ```
 
 ### Explanation
 
-- `image: debian:bookworm-slim`
-  
-  lightweight Debian container used as the audio backend
+- `services: player`
 
-- `devices: /dev/snd`
-  
-  exposes the UNO Q audio device to the container
-
-- `volumes: /home/arduino/mp3:/hosthome`
-  
-  makes host MP3 files accessible from inside the container
-
-  Create the host directory if needed:
-
-  ```bash
-   mkdir -p /home/arduino/mp3
-  ```
-
-  Then simply copy your MP3 files into that directory (within available storage space on the UNO Q host filesystem).
-
-- `command: ...`
-  
-  installs required packages and launches the audio backend service
-
-This demonstrates that a custom App Lab brick can encapsulate not only Python logic, but also its own dedicated Linux runtime service.
+  Declares a dedicated backend service container for the brick.
 
 ---
+
+- `image: debian:bookworm-slim`
+
+  Uses a lightweight Debian Linux container as the runtime environment for the audio backend.
+
+---
+
+- `user: root`
+
+  Runs the backend process as root **inside the container**.
+
+  This simplifies package installation (`apt install`) and access to audio-related system resources.
+
+---
+
+- `devices: /dev/snd`
+
+  Exposes the UNO Q audio device to the container.
+
+  Without this mapping, ALSA audio playback would not be possible.
+
+---
+
+- `volumes: .:/audioplayer`
+
+  Mounts the brick directory itself inside the container.
+
+  This allows the container to access files shipped with the brick, including:
+
+```text
+audio_service.py
+```
+
+  which becomes:
+
+```text
+/audioplayer/audio_service.py
+```
+
+  inside the container.
+
+---
+
+- `volumes: /home/arduino/mp3:/hosthome`
+
+  Mounts a host directory containing local MP3 files.
+
+Example:
+
+Host filesystem:
+
+```text
+/home/arduino/mp3/test.mp3
+```
+
+Container view:
+
+```text
+/hosthome/test.mp3
+```
+
+Create the directory if needed:
+
+```bash
+mkdir -p /home/arduino/mp3
+```
+
+Then copy your MP3 files into that directory (within available storage space on the UNO Q host filesystem).
+
+---
+
+- `command: ...`
+
+  Container startup command.
+
+  It performs:
+
+#### 1. Update package lists
+
+```bash
+apt update
+```
+
+#### 2. Install required packages
+
+```bash
+python3
+mpg123
+alsa-utils
+procps
+curl
+ca-certificates
+```
+
+Package details:
+
+- `python3`
+
+  Python runtime used to execute the backend service (`audio_service.py`).
+
+- `mpg123`
+
+  Lightweight command-line MP3 audio player.
+
+  Used to decode and play:
+
+  - internet MP3 streams
+  - local MP3 files
+
+- `alsa-utils`
+
+  ALSA (Advanced Linux Sound Architecture) utility tools.
+
+  Provides:
+
+```bash
+amixer
+```
+
+  used by the project to control audio volume.
+
+- `procps`
+
+  Linux process management utilities.
+
+  Provides tools such as:
+
+```bash
+ps
+pkill
+```
+
+  useful for debugging or process management.
+
+- `curl`
+
+  Command-line HTTP client.
+
+  Useful for manually testing the internal backend API:
+
+```bash
+curl http://localhost:9000/status
+```
+
+- `ca-certificates`
+
+  SSL/TLS certificate bundle.
+
+  Required so HTTPS audio streams can be accessed securely.
+
+  Without it, URLs such as:
+
+```text
+https://...
+```
+
+  may fail with certificate validation errors.
+
+#### 3. Start backend service
+
+```bash
+python3 /audioplayer/audio_service.py
+```
+
+`exec` replaces the shell process with the Python backend process, which is cleaner for container lifecycle management.
+
+---
+### Why this matters
+
+This demonstrates that a custom App Lab brick can encapsulate not only Python logic, but also:
+
+- its own Linux runtime environment
+- its own backend service
+- hardware access
+- local filesystem access
+- reusable APIs
 ## Notes
 
 On first startup, the container dynamically installs required Debian packages:
