@@ -2005,4 +2005,507 @@ terminate mpg123 process
 
 ---
 
+## Docker integration (`brick_compose.yaml`)
 
+The AudioPlayer brick relies on Arduino App Lab custom brick container support.
+
+The backend audio service runs in its own dedicated container.
+
+Example configuration:
+
+```yaml
+services:
+  player:
+    image: debian:bookworm-slim
+    user: root
+
+    devices:
+      - /dev/snd
+
+    volumes:
+      - .:/audioplayer
+      - /home/arduino/mp3:/hosthome
+
+    command: >
+      sh -c "
+      apt update &&
+      apt install -y python3 mpg123 alsa-utils procps curl ca-certificates &&
+      exec python3 /audioplayer/audio_service.py
+      "
+```
+
+---
+
+## Why a dedicated backend container
+
+The AudioPlayer brick is intentionally split into:
+
+- Python client API
+- backend audio execution service
+
+The backend container isolates:
+
+- Linux audio tooling
+- process management
+- hardware access
+- audio dependencies
+
+This keeps the application-facing API simple.
+
+---
+
+## Service name
+
+```yaml
+services:
+  player:
+```
+
+The service name becomes the internal Docker hostname:
+
+```text
+player
+```
+
+This is why the client uses:
+
+```python
+host="http://player:9000"
+```
+
+Docker internal DNS resolves the backend automatically.
+
+---
+
+## Base image
+
+```yaml
+image: debian:bookworm-slim
+```
+
+Provides a lightweight Linux runtime suitable for:
+
+- Python
+- audio tools
+- package installation
+
+The backend does not require a full desktop environment.
+
+---
+
+## Running as root
+
+```yaml
+user: root
+```
+
+Allows:
+
+- package installation
+- direct access to mapped devices
+- simpler backend setup
+
+This is acceptable here because the container is dedicated to a controlled backend role.
+
+---
+
+## Audio hardware access
+
+```yaml
+devices:
+  - /dev/snd
+```
+
+Exposes the host Linux audio subsystem to the container.
+
+Without this mapping:
+
+- ALSA would not see audio devices
+- `mpg123` would fail
+- `amixer` would fail
+
+This is essential for real audio output.
+
+---
+
+## Brick source mounting
+
+```yaml
+volumes:
+  - .:/audioplayer
+```
+
+Mounts the brick directory inside the container.
+
+This makes:
+
+```text
+audio_service.py
+```
+
+available as:
+
+```text
+/audioplayer/audio_service.py
+```
+
+inside the backend runtime.
+
+This allows the backend code to remain part of the brick repository.
+
+---
+
+## Local MP3 directory mounting
+
+```yaml
+volumes:
+  - /home/arduino/mp3:/hosthome
+```
+
+Maps a host directory into the backend container.
+
+Host filesystem:
+
+```text
+/home/arduino/mp3/test.mp3
+```
+
+Container view:
+
+```text
+/hosthome/test.mp3
+```
+
+This allows playback of MP3 files stored directly on the UNO Q Linux host.
+
+---
+
+## Container startup command
+
+```yaml
+command:
+```
+
+The backend container performs:
+
+### Package update
+
+```bash
+apt update
+```
+
+Refreshes Debian package metadata.
+
+---
+
+### Dependency installation
+
+```bash
+apt install -y python3 mpg123 alsa-utils procps curl ca-certificates
+```
+
+---
+
+#### `python3`
+
+Runtime for:
+
+```text
+audio_service.py
+```
+
+---
+
+#### `mpg123`
+
+Audio playback engine.
+
+Used for:
+
+- internet MP3 streams
+- local MP3 playback
+
+---
+
+#### `alsa-utils`
+
+Provides:
+
+```bash
+amixer
+```
+
+Used for volume control.
+
+---
+
+#### `procps`
+
+Provides process tools such as:
+
+```bash
+ps
+pkill
+```
+
+Useful for diagnostics.
+
+---
+
+#### `curl`
+
+Convenient for backend API testing.
+
+Examples:
+
+```bash
+curl http://localhost:9000/status
+curl "http://localhost:9000/volume?value=70"
+```
+
+---
+
+#### `ca-certificates`
+
+Required for HTTPS audio streams.
+
+Without it:
+
+secure streams may fail certificate validation.
+
+---
+
+## Backend startup
+
+```bash
+exec python3 /audioplayer/audio_service.py
+```
+
+Starts the backend HTTP audio service.
+
+Using:
+
+```bash
+exec
+```
+
+replaces the shell process with the Python backend process.
+
+This improves container lifecycle behavior.
+
+---
+
+## Local MP3 usage
+
+Create the host directory if needed:
+
+```bash
+mkdir -p /home/arduino/mp3
+```
+
+Copy MP3 files from a Mac:
+
+Example:
+
+```bash
+scp "~/Downloads/BARBARA_L'AIGLE-NOIR.MP3" arduino@192.168.1.46:/home/arduino/mp3/
+```
+
+Verify:
+
+```bash
+ls /home/arduino/mp3
+```
+
+Example result:
+
+```text
+BARBARA_L'AIGLE-NOIR.MP3
+```
+
+Play from Python:
+
+```python
+player.play("/hosthome/BARBARA_L'AIGLE-NOIR.MP3")
+```
+
+---
+
+## Example application usage
+
+Minimal App Lab example:
+
+```python
+from audioplayer import AudioPlayer
+from arduino.app_utils import App
+import time
+
+player = AudioPlayer()
+
+for _ in range(30):
+    status = player.status()
+    if status.get("ok"):
+        break
+    time.sleep(2)
+
+player.set_volume(50)
+
+player.play("http://icecast.radiofrance.fr/franceinfo-lofi.mp3")
+
+App.run()
+```
+
+---
+
+## UNO Q integration scenarios
+
+The brick itself is independent from any specific frontend.
+
+Different control layers may be built on top of it.
+
+---
+
+### Direct App Lab Python control
+
+Simplest architecture:
+
+```text
+App Lab Python application
+        ↓
+AudioPlayer brick
+        ↓
+audio backend
+        ↓
+ALSA
+```
+
+Use case:
+
+- scripts
+- automation
+- App Lab applications
+
+---
+
+### Web UI frontend
+
+Browser-controlled architecture:
+
+```text
+Web UI
+    ↓
+App Lab Python
+    ↓
+AudioPlayer brick
+    ↓
+audio backend
+```
+
+Use case:
+
+- browser-based radio control
+- touch interfaces
+- remote dashboards
+
+---
+
+### MCU + Bridge integration
+
+Hybrid UNO Q architecture:
+
+```text
+STM32 MCU
+    ↓
+Bridge
+    ↓
+App Lab Python
+    ↓
+AudioPlayer brick
+    ↓
+audio backend
+```
+
+Use case:
+
+- hardware buttons
+- LCD interfaces
+- autonomous embedded controls
+
+Important:
+
+Bridge is not part of the brick itself.
+
+It is only one possible integration mechanism.
+
+---
+
+## Why this design fits UNO Q particularly well
+
+UNO Q combines:
+
+- Linux
+- Python
+- Docker containers
+- App Lab
+- optional MCU integration
+
+This makes it particularly suitable for layered architectures such as:
+
+```text
+frontend
+    ↓
+Python API
+    ↓
+HTTP service
+    ↓
+Linux backend
+    ↓
+hardware
+```
+
+Traditional microcontroller platforms usually cannot support this level of separation.
+
+UNO Q can.
+
+---
+
+## Design summary
+
+This brick demonstrates a reusable architectural pattern:
+
+```text
+Python client API
+        ↓
+internal HTTP JSON API
+        ↓
+specialized Linux backend
+        ↓
+hardware execution
+```
+
+This pattern can be reused beyond audio.
+
+Examples:
+
+- text-to-speech
+- speech recognition
+- camera services
+- SDR control
+- media transcoding
+- Linux peripheral access
+
+---
+
+## Conclusion
+
+The AudioPlayer brick is more than a simple audio wrapper.
+
+It demonstrates how an Arduino App Lab custom brick can encapsulate:
+
+- reusable Python APIs
+- a dedicated Linux backend service
+- hardware access
+- containerized runtime dependencies
+- clean separation between application logic and execution engine
+
+This makes the design modular, reusable, and well suited to the hybrid architecture of Arduino UNO Q.
