@@ -2308,7 +2308,7 @@ Copy MP3 files from a Mac:
 Example:
 
 ```bash
-scp "~/Downloads/BARBARA_L'AIGLE-NOIR.MP3" arduino@192.168.1.46:/home/arduino/mp3/
+scp "~/Downloads/BARBARA_L_AIGLE-NOIR.MP3" arduino@192.168.1.46:/home/arduino/mp3/
 ```
 
 Verify:
@@ -2320,13 +2320,13 @@ ls /home/arduino/mp3
 Example result:
 
 ```text
-BARBARA_L'AIGLE-NOIR.MP3
+BARBARA_L_AIGLE-NOIR.MP3
 ```
 
 Play from Python:
 
 ```python
-player.play("/hosthome/BARBARA_L'AIGLE-NOIR.MP3")
+player.play("/hosthome/BARBARA_L_AIGLE-NOIR.MP3")
 ```
 
 ---
