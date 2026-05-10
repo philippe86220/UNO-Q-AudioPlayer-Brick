@@ -2,6 +2,9 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 import subprocess
 import json
 import urllib.parse
+import os
+import time
+import urllib.parse
 
 HOST = "0.0.0.0"
 PORT = 9000
@@ -33,20 +36,54 @@ def start_player(source):
     global player_process, current_source
 
     if not source:
-        return {
-            "ok": False,
-            "error": "Missing source"
-        }
+        return {"ok": False, "error": "Missing source"}
+
+    parsed = urllib.parse.urlparse(source)
+
+    # Local file validation
+    if source.startswith("/"):
+        if not os.path.isfile(source):
+            return {
+                "ok": False,
+                "error": "Local file not found",
+                "source": source
+            }
+
+    # URL validation
+    else:
+        if parsed.scheme not in ("http", "https"):
+            return {
+                "ok": False,
+                "error": "Invalid source scheme",
+                "source": source
+            }
 
     stop_player()
 
-    player_process = subprocess.Popen([
-        "mpg123",
-        "-o", "alsa",
-        "-a", AUDIO_DEVICE,
-        "--buffer", "4096",
-        source
-    ])
+    player_process = subprocess.Popen(
+        [
+            "mpg123",
+            "-o", "alsa",
+            "-a", AUDIO_DEVICE,
+            "--buffer", "4096",
+            source
+        ],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.PIPE,
+        text=True
+    )
+
+    time.sleep(0.5)
+
+    if player_process.poll() is not None:
+        error_output = player_process.stderr.read() if player_process.stderr else ""
+        player_process = None
+        return {
+            "ok": False,
+            "error": "mpg123 failed to start",
+            "source": source,
+            "details": error_output.strip()
+        }
 
     current_source = source
 
@@ -138,3 +175,4 @@ class Handler(BaseHTTPRequestHandler):
 if __name__ == "__main__":
     print("[audio_service] starting on port", PORT)
     HTTPServer((HOST, PORT), Handler).serve_forever()
+
