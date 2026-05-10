@@ -92,6 +92,95 @@ ALSA (/dev/snd)
 
 ---
 
+## Runtime Interaction Model
+
+The AudioPlayer brick acts as a lightweight Python client.
+
+For example:
+
+```python
+player.play("http://icecast.radiofrance.fr/franceinfo-lofi.mp3")
+```
+
+does not directly play audio itself.
+
+Instead, it translates the request into an internal HTTP call to the backend service:
+
+```text
+GET http://player:9000/play?source=http://icecast.radiofrance.fr/franceinfo-lofi.mp3
+```
+
+Other examples:
+
+```text
+GET http://player:9000/play?source=/hosthome/test.mp3
+GET http://player:9000/volume?value=70
+GET http://player:9000/stop
+GET http://player:9000/status
+```
+
+The backend audio service is the actual owner of playback:
+
+```text
+audio_service.py
+    ↓
+mpg123
+    ↓
+ALSA
+    ↓
+/dev/snd
+    ↓
+USB audio device
+```
+
+This means the App Lab Python application does **not** directly control ALSA audio playback.
+
+Instead, it communicates with a dedicated internal audio service through HTTP requests.
+
+Execution flow:
+
+```text
+App Lab Python app (main.py)
+        ↓
+AudioPlayer brick (__init__.py)
+        ↓
+Internal HTTP request
+        ↓
+Containerized audio backend (audio_service.py)
+        ↓
+mpg123 / amixer
+        ↓
+ALSA (/dev/snd)
+        ↓
+physical audio output
+```
+
+Responsibility separation:
+
+```text
+main.py              = application logic
+AudioPlayer brick    = simplified client API
+audio_service.py     = audio backend server
+mpg123 / ALSA        = Linux audio execution
+```
+
+This client-server architecture makes the design flexible and reusable.
+
+The frontend control mechanism can change:
+
+- Web UI
+- Modulino buttons
+- LCD interface
+- another Python application
+- REST API calls
+- automation scripts
+
+without changing the audio engine itself.
+
+As long as the backend HTTP API remains stable, the playback system remains reusable.
+
+---
+
 ## Local MP3 Playback
 
 A local host directory can be mounted inside the container:
