@@ -457,10 +457,6 @@ MIT License
 
 ---
 
-This WebRadio project was originally developed and tested on the **Arduino UNO Q**.
-
-It has also been successfully tested on the **Arduino VENTUNO Q in SBC mode**.
-
 ## VENTUNO Q compatibility
 
 This WebRadio project was originally developed and tested on the **Arduino UNO Q**.
