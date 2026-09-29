@@ -580,63 +580,6 @@ def set_volume(value):
     }
 ```
 
-## Troubleshooting Python code
-
-During the VENTUNO Q tests, an accidental syntax error was introduced while modifying `radio_service.py`.
-
-The application logs did not make the origin of the problem immediately obvious because the main application could still report that it had started.
-
-A simple Python syntax check proved very useful.
-
-First, locate the Python file if necessary:
-
-```bash
-find ~ -name "radio_service.py" 2>/dev/null
-```
-
-For this project it returned:
-
-```text
-/home/arduino/ArduinoApps/uno-q-webradio-brick-main/bricks/webradio/radio_service.py
-```
-
-Move to this directory:
-
-```bash
-cd ~/ArduinoApps/uno-q-webradio-brick-main/bricks/webradio
-```
-
-Then check the Python source without running the WebRadio:
-
-```bash
-python3 -m py_compile radio_service.py
-```
-
-If the source code contains no syntax error, the command produces no output.
-
-For example, the deliberately incorrect line:
-
-```python
-icifrom http.server import BaseHTTPRequestHandler, HTTPServer
-```
-
-produces:
-
-```text
-File "radio_service.py", line 1
-    icifrom http.server import BaseHTTPRequestHandler, HTTPServer
-            ^^^^
-SyntaxError: invalid syntax
-```
-
-This command is therefore a useful first diagnostic step after modifying a Python file when an application suddenly stops working:
-
-```bash
-python3 -m py_compile radio_service.py
-```
-
-It separates a **Python syntax problem** from problems involving Docker, App Lab, ALSA, the audio hardware, or the WebRadio itself.
-
 ## UNO Q / VENTUNO Q summary
 
 The WebRadio application can therefore be used on both platforms.
