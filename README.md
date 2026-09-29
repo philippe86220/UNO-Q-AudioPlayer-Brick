@@ -454,3 +454,210 @@ It also benefited from technical discussions and architectural exploration with 
 ## License
 
 MIT License
+
+---
+
+This WebRadio project was originally developed and tested on the **Arduino UNO Q**.
+
+It has also been successfully tested on the **Arduino VENTUNO Q in SBC mode**.
+
+## VENTUNO Q compatibility
+
+This WebRadio project was originally developed and tested on the **Arduino UNO Q**.
+
+It has also been successfully tested on the **Arduino VENTUNO Q in SBC mode**.
+
+The application itself did not require any significant modification. The main difference concerns the audio hardware and its ALSA configuration.
+
+### USB audio output
+
+On the VENTUNO Q, the internal ALSA audio device is detected as:
+
+```text
+card 0: monacogertrude [monaco-gertrude]
+device 0: MultiMedia1 Playback
+device 2: MultiMedia3 Playback
+```
+
+The devices can be listed with:
+
+```bash
+cat /proc/asound/cards
+cat /proc/asound/pcm
+aplay -l
+```
+
+Although playback devices are exposed by the VENTUNO Q audio subsystem, no directly usable analog audio output was used for this project.
+
+A small **USB audio adapter** was therefore connected to the VENTUNO Q and then to an external JBL speaker.
+
+After connecting the USB audio adapter:
+
+```bash
+aplay -l
+```
+
+shows it as an additional ALSA card.
+
+In this configuration, the USB adapter is:
+
+```text
+card 1
+device 0
+```
+
+The audio output can be tested directly with:
+
+```bash
+speaker-test -D hw:1,0 -c 2 -r 48000 -F S16_LE -t sine
+```
+
+A continuous 440 Hz test tone confirms that the complete audio path is working.
+
+The WebRadio audio device must consequently be changed from:
+
+```python
+AUDIO_DEVICE = "hw:0,0"
+```
+
+to:
+
+```python
+AUDIO_DEVICE = "hw:1,0"
+```
+
+`plughw:1,0` was also successfully tested.
+
+`hw:1,0` provides direct access to the ALSA hardware device, whereas `plughw:1,0` adds the ALSA `plug` layer, which can automatically perform format conversions when required.
+
+Since `hw:1,0` works correctly with this WebRadio configuration, it is used here.
+
+### Volume control
+
+The mixer controls of the USB audio adapter can be displayed with:
+
+```bash
+amixer -c 1
+```
+
+The tested adapter exposes:
+
+```text
+Simple mixer control 'Headphone',0
+Capabilities: pvolume pswitch pswitch-joined
+Playback channels: Front Left - Front Right
+Limits: Playback 0 - 100
+```
+
+Volume control can be tested manually:
+
+```bash
+amixer -c 1 sset Headphone 30%
+amixer -c 1 sset Headphone 80%
+```
+
+The Python volume function therefore uses the USB audio card and its `Headphone` mixer:
+
+```python
+def set_volume(value):
+    global volume
+
+    try:
+        value = int(value)
+    except Exception:
+        value = 50
+
+    value = max(0, min(100, value))
+    volume = value
+
+    subprocess.run([
+        "amixer",
+        "-c", "1",
+        "sset",
+        "Headphone",
+        str(value) + "%"
+    ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+    return {
+        "ok": True,
+        "volume": volume
+    }
+```
+
+## Troubleshooting Python code
+
+During the VENTUNO Q tests, an accidental syntax error was introduced while modifying `radio_service.py`.
+
+The application logs did not make the origin of the problem immediately obvious because the main application could still report that it had started.
+
+A simple Python syntax check proved very useful.
+
+First, locate the Python file if necessary:
+
+```bash
+find ~ -name "radio_service.py" 2>/dev/null
+```
+
+For this project it returned:
+
+```text
+/home/arduino/ArduinoApps/uno-q-webradio-brick-main/bricks/webradio/radio_service.py
+```
+
+Move to this directory:
+
+```bash
+cd ~/ArduinoApps/uno-q-webradio-brick-main/bricks/webradio
+```
+
+Then check the Python source without running the WebRadio:
+
+```bash
+python3 -m py_compile radio_service.py
+```
+
+If the source code contains no syntax error, the command produces no output.
+
+For example, the deliberately incorrect line:
+
+```python
+icifrom http.server import BaseHTTPRequestHandler, HTTPServer
+```
+
+produces:
+
+```text
+File "radio_service.py", line 1
+    icifrom http.server import BaseHTTPRequestHandler, HTTPServer
+            ^^^^
+SyntaxError: invalid syntax
+```
+
+This command is therefore a useful first diagnostic step after modifying a Python file when an application suddenly stops working:
+
+```bash
+python3 -m py_compile radio_service.py
+```
+
+It separates a **Python syntax problem** from problems involving Docker, App Lab, ALSA, the audio hardware, or the WebRadio itself.
+
+## UNO Q / VENTUNO Q summary
+
+The WebRadio application can therefore be used on both platforms.
+
+The main adaptation required for the tested VENTUNO Q SBC configuration is the ALSA audio device:
+
+```text
+UNO Q configuration      hw:0,0
+VENTUNO Q + USB audio    hw:1,0
+```
+
+and the corresponding USB mixer:
+
+```bash
+amixer -c 1 sset Headphone <volume>%
+```
+
+The VENTUNO Q port did not require a redesign of the WebRadio application itself; the changes are related to the audio hardware configuration.
+
+...
